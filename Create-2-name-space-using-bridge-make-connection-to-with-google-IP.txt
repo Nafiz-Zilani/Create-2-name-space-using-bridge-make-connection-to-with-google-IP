@@ -1,0 +1,40 @@
+>Requir tools
+	sudo apt install net-tools iproute2 tcpdump iptables iputils-ping
+
+> Create 2 name sspace
+	sudo ip netns add red
+	sudo ip netns add green
+
+> Create a virtual switch
+	sudo ip link add br0 type bridge
+
+> Up the interface of switch & assign ip address to switch
+	sudo ip link set br0 up
+	sudo ip addr add 192.168.0.1/16 dev br0
+
+> Create 2 veth cable
+	sudo ip link add veth0 type veth peer name cveth0
+	sudo ip link add veth1 type veth peer name cveth1
+
+> Connect the veth cables from namespace to switch
+	sudo ip link set cveth0 netns red
+	sudo ip link set veth0 master br0
+	sudo ip link set cveth1 netns green
+	sudo ip link set veth1 master br0
+
+> Up the interfaces of namespace & switch
+	sudo ip netns exec red ip link set cveth0 up
+	sudo ip link set veth0 up
+	sudo ip netns exec green ip link set cveth1 up
+	sudo ip link set veth1 up
+
+> Set ip address to namespaces
+	sudo ip netns exec red ip addr add 192.168.0.2/16 dev cveth0
+	sudo ip netns exec green ip addr add 192.168.0.3/16 dev cveth1
+
+> Set default getway ip to the namespaces
+	sudo ip netns exec red ip route add default via 192.168.0.1
+	sudo ip netns exec green ip route add default via 192.168.0.1
+
+> Set rule to root so if any ip related to 192.168.0.0/16 come to root interface it will be directed to switch
+	sudo iptables -t nat -A POSTROUTING -s 192.168.0.0/16 -j MASQUERADE
